@@ -5,5 +5,6 @@ In this project I combine my knowledge of Neural Networks and data mining to lea
 
 ### sources
 [openAi](https://github.com/openai/gym)
+
 [book](https://github.com/redklouds/ReinforcementLearning-PingPong/blob/master/Hands-On%20Machine%20Learning%20-%20Aurelien%20Geron.pdf)
 
