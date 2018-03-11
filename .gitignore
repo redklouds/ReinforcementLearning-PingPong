@@ -3,3 +3,4 @@
 *.swo
 Contract/
 SideSources/
+__pycache__/

@@ -21,7 +21,7 @@ envs = []
 NUM_ENVIROMENTS = 5
 NUM_GENERATIONS = 15
 NUM_NETWORKS = 20
-PERCENT_NETS_TO_KILL = .50
+PERCENT_NETS_TO_KILL = .75
 
 #a 32bit pythopn teroperter only allows 2GB physical page siz ein ram
 def main():

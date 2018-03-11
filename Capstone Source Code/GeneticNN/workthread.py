@@ -10,8 +10,9 @@
 #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#\|
 import threading
 import numpy as np
-
 from helper_methods import preprocess_observation, discount_with_rewards, compute_gradient, update_weights
+
+
 class WorkThread(threading.Thread):
     # still needs works
     def __init__(self, tID, exit, lock, workQueue):
@@ -24,9 +25,6 @@ class WorkThread(threading.Thread):
     def run(self):
         print("Thread- %s, has been started.. waiting for work" % self.threadID)
         while not self.exitFlag.exit:
-            # print("Thread-%s trying to get work%s" %(self.threadID, self.work_queue.qsize()))
-            # print("Thread-%s waiting for lock..." % self.threadID)
-
             self.QueueLock.acquire()
             # print("Thread-%s got the LOCK!" % self.threadID)
             if not self.work_queue.empty():
@@ -68,17 +66,8 @@ class WorkThread(threading.Thread):
             processed_obs, prev_processed_obser = preprocess_observation(obs, prev_processed_obser, 80 * 80)
 
             # hidden_lay_values, action = network.predict(
-
+            #a1 is the output for the hidden layer and a2 is output for the final output layer
             a1, a2 = network.predict(processed_obs)
-            # print("result: %s" %result)
-
-
-            # ep_obs.append(np.reshape(processed_obs, (processed_obs.shape[0],1)).T)
-            # print("Hidden alyer size",a1.shape)
-
-            # print("OBERSAVATIONS SIZE" , processed_obs.shape)
-            # ep_hidden_layer_vals.append(np.reshape(a1, (a1.shape[0],1)).T)
-
 
             ep_obs.append(processed_obs)
 

@@ -37,7 +37,6 @@ def preprocess_observation(input_obs, pre_processed_obs, input_dimension):
     prev_processed_obser = processed_obs
     return input_obs, prev_processed_obser
 
-
 def _makeDerivativeMatrix(self, index, a):
     """
         Computes the corresponding jaccbian matrix for the derivative matrix
