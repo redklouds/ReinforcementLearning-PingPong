@@ -20,22 +20,47 @@ def remove_background(image):
     image[image == 144] = 0
     image[image == 109] = 0
     return image
-def preprocess_observation(input_obs, pre_processed_obs, input_dimension):
-    """Remove the score from the input,  """
-    processed_obs = input_obs[35:195]
-    processed_obs = downsample(processed_obs)
-    processed_obs = remove_color(processed_obs)
-    processed_obs = remove_background(processed_obs)
-    processed_obs[processed_obs != 0] = 1 # anything that is not zero set it to 1(normalizaton step)
+# def preprocess_observation(input_obs, pre_processed_obs, input_dimension):
+#     """Remove the score from the input,  """
+#     processed_obs = input_obs[35:195]
+#     processed_obs = downsample(processed_obs)
+#     processed_obs = remove_color(processed_obs)
+#     processed_obs = remove_background(processed_obs)
+#     processed_obs[processed_obs != 0] = 1 # anything that is not zero set it to 1(normalizaton step)
+#
+#     processed_obs = processed_obs.astype(np.float).ravel()
+#
+#     if pre_processed_obs is not None:
+#         input_obs = processed_obs - pre_processed_obs
+#     else:
+#         input_obs = np.zeros((input_dimension,1))
+#     prev_processed_obser = processed_obs
+#     return input_obs, prev_processed_obser
 
-    processed_obs = processed_obs.astype(np.float).ravel()
 
-    if pre_processed_obs is not None:
-        input_obs = processed_obs - pre_processed_obs
+
+def preprocess_observation(input_observation, prev_processed_observation, input_dimensions):
+    """ convert the 210x160x3 uint8 frame into a 6400 float vector """
+    processed_observation = input_observation[35:195]  # crop
+    processed_observation = downsample(processed_observation)
+    processed_observation = remove_color(processed_observation)
+    processed_observation = remove_background(processed_observation)
+    processed_observation[processed_observation != 0] = 1  # everything else (paddles, ball) just set to 1
+    # Convert from 80 x 80 matrix to 1600 x 1 matrix
+    #print(processed_observation.shape)
+    processed_observation = processed_observation.astype(np.float).ravel()
+    processed_observation = processed_observation.reshape((6400,1))
+    #print(processed_observation.shape)
+    # subtract the previous frame from the current one so we are only processing on changes in the game
+    if prev_processed_observation is not None:
+        input_observation = processed_observation - prev_processed_observation
     else:
-        input_obs = np.zeros((input_dimension,1))
-    prev_processed_obser = processed_obs
-    return input_obs, prev_processed_obser
+        input_observation = np.zeros( (input_dimensions, 1) )
+    # store the previous frame so we can subtract from it next time
+    prev_processed_observations = processed_observation
+    #print("input observation size ", input_observation.shape)
+    #print("RETURNING %s" % input_observation.shape)
+    return input_observation, prev_processed_observations
 
 def _makeDerivativeMatrix(self, index, a):
     """
@@ -61,11 +86,14 @@ def update_weights(weights, exp_g_sq, g_dict, decay_r, learn_r):
     # done
     eps = 1e-5
     for layer in weights.keys():
+
+        print("UPDATE Layer: ", layer)
+        # print("UPDATE weights ", weights[layer].shape)
+        # print("UPDATE exp_g_sq ", exp_g_sq[layer].shape)
+        # print("UPDATE g_dict ", g_dict[layer].shape)
         g = g_dict[layer]
         exp_g_sq[layer] = decay_r * exp_g_sq[layer] + (1 - decay_r) * g ** 2
-        print("Weights :", weights[layer].shape)
-        print("g : ", g.shape)
-        print("exp_g_sqrt: ", exp_g_sq[layer].shape)
+
         weights[layer] += (learn_r * g) / (np.sqrt(exp_g_sq[layer] + eps))
 
         g_dict[layer] = np.zeros_like(weights[layer])
@@ -78,18 +106,31 @@ def relu(vector):
 
 
 def compute_gradient(gradient_log_p, hidden_layer_val, obs_val, weights):
+
+    print("COMPUTE GRADIENT")
+    # print("COMPUTE GRADIENT gradient_log_ ", gradient_log_p.shape)
+    # print("COMPUTE GRADIENT hidden_layer ", hidden_layer_val.shape)
+    # print("COMPUTE GRADIENT observation val: ", obs_val.shape)
+    # print("COMPUTE GRADIENT weights 1: ", weights['1'].shape)
+    # print("COMPUTE GRADIENT weights 2: ", weights['2'].shape)
     delta_L = gradient_log_p
 
-    dxC_dw2 = np.dot(hidden_layer_val.T, delta_L).ravel()
-    print("delta_L : ", delta_L.shape)
-    print("dxC_dw2: ", dxC_dw2.shape)
-    print("Layer 2 Weights : ", weights['2'].shape)
+    danny_delta = np.hstack([gradient_log_p,gradient_log_p,gradient_log_p])
+
+    #dxC_dw2 = np.dot(hidden_layer_val.T, delta_L).ravel()
+    dxC_dw2 = np.dot(hidden_layer_val.T,danny_delta)
+
+    #print("Dc_w2 ", dxC_dw2.shape)
+    #dxC_dw2 = dxC_dw2.reshape(dxC_dw2.shape[0],1)
+    # print("Dc_w2 ", dxC_dw2.shape)
+
 
     delta_l2 = np.outer(delta_L, weights['2'])  # last layer, output layer
-    print("delta_l2: ", delta_l2.shape)
+
+    #print("delta_l2: ", delta_l2.shape)
     delta_l2 = relu(delta_l2)
     dxC_dw1 = np.dot(delta_l2.T, obs_val)
-    print("dxC_dw1: ", dxC_dw1.shape)
+    #print("dxC_dw1: ", dxC_dw1.shape)
     return {
         '1': dxC_dw1,
         '2': dxC_dw2

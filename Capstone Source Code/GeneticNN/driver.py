@@ -18,34 +18,27 @@ from network import Network
 
 
 envs = []
-NUM_ENVIROMENTS = 5
-NUM_GENERATIONS = 15
-NUM_NETWORKS = 20
-PERCENT_NETS_TO_KILL = .75
+NUM_GENERATIONS = 50
+NUM_NETWORKS = 10
+PERCENT_NETS_TO_KILL = .25
 
 #a 32bit pythopn teroperter only allows 2GB physical page siz ein ram
 def main():
     pop = Queue() #population queue, storage for all our neural networks
     # initialize the Default starting networks
-    test_learning_rate = 0.7
-    test_num_hidden_neurons = 200
-    test_decay_rate = .98
-    test_input_dimension = 80 * 80
-    test_weights = {'1': np.random.randn(test_num_hidden_neurons, test_input_dimension) / np.sqrt(test_input_dimension),
-                    '2': np.random.randn(3, test_num_hidden_neurons) / np.sqrt(test_num_hidden_neurons)
-                    }
-    test_hyper_param = {
-        'learning_rate': test_learning_rate,
-        'num_hidden_neuron': test_num_hidden_neurons,
-        'decay_rate': test_decay_rate,
-        'weights': test_weights
-    }
 
-    for net in range(NUM_NETWORKS):
+    for _ in range(2):
+        f_name = "Hyper_param_P%s.p" % (_ + 1)
+        f = open(f_name, "rb")
+        _param = pickle.load(f)
+        _n = Network(_param)
+        pop.put(_n)
+
+    for net in range(NUM_NETWORKS - 2):
         # create random networks
         # _net = Network(test_learning_rate, test_decay_rate,test_num_hidden_neuron,test_input_dimension)
         lr = round(random.random(), 2)
-        hid_nur = random.randint(120, 600)
+        hid_nur = random.randint(120, 800)
         dr = round(random.random(), 2)
         _w = {'1': np.random.randn(hid_nur, 80 * 80) / np.sqrt(80 * 80),
               '2': np.random.randn(3, hid_nur) / np.sqrt(hid_nur)
@@ -88,7 +81,6 @@ def main():
         print("Size of work queue %s" % workQueue.qsize())
         for i in range(NUM_NETWORKS):
             # get the lock when putting work into the work queue
-
             work = {
                 'net': pop.get(),
                 'env': envs[i],
