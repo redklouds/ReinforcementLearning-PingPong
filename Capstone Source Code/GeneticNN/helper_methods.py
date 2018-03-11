@@ -9,7 +9,8 @@
 #=#|
 #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#\|
 import numpy as np
-
+from network import Network
+import random
 def downsample(image):
     return image[::2, ::2, :]
 def remove_color(image):

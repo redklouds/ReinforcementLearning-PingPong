@@ -8,27 +8,25 @@
 #=#| Usage:
 #=#|
 #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#\|
-import gym
+import gym, random, threading, pickle
 import numpy as np
 from queue import Queue
-import threading
-import pickle
 from exitobject import ExitObject
 from workthread import WorkThread
 from helper_methods import generateChildren, mutate
-
-import random
 from network import Network
+
+
 envs = []
 NUM_ENVIROMENTS = 5
 NUM_GENERATIONS = 15
-NUM_NETWORKS = 12
+NUM_NETWORKS = 20
 PERCENT_NETS_TO_KILL = .50
 
-
+#a 32bit pythopn teroperter only allows 2GB physical page siz ein ram
 def main():
-    pop = Queue()
-    # initalize the Default starting networks
+    pop = Queue() #population queue, storage for all our neural networks
+    # initialize the Default starting networks
     test_learning_rate = 0.7
     test_num_hidden_neurons = 200
     test_decay_rate = .98
@@ -43,7 +41,6 @@ def main():
         'weights': test_weights
     }
 
-    import random
     for net in range(NUM_NETWORKS):
         # create random networks
         # _net = Network(test_learning_rate, test_decay_rate,test_num_hidden_neuron,test_input_dimension)
@@ -60,7 +57,6 @@ def main():
                        }
 
         _net = Network(hyper_param)
-
         pop.put(_net)
 
     # prepare the enviroments
@@ -82,7 +78,6 @@ def main():
 
     for generation in range(NUM_GENERATIONS):
         # for each generation
-
 
         print("Starting Generation-%s" % generation)
 
@@ -164,8 +159,9 @@ def main():
             # however many we are thinking of breeding from the winners
 
             ################# we have the two winning parents, kill off 10(50%) and repopulate with spawn
-
+    print("Finished program execution, stopping all threads ....")
     thExitController.setExit()
+    print("Finished program execution, calling all sub threads to join main thread...")
     for th in threads:
         th.join()
 
