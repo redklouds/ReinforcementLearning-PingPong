@@ -20,23 +20,6 @@ def remove_background(image):
     image[image == 144] = 0
     image[image == 109] = 0
     return image
-# def preprocess_observation(input_obs, pre_processed_obs, input_dimension):
-#     """Remove the score from the input,  """
-#     processed_obs = input_obs[35:195]
-#     processed_obs = downsample(processed_obs)
-#     processed_obs = remove_color(processed_obs)
-#     processed_obs = remove_background(processed_obs)
-#     processed_obs[processed_obs != 0] = 1 # anything that is not zero set it to 1(normalizaton step)
-#
-#     processed_obs = processed_obs.astype(np.float).ravel()
-#
-#     if pre_processed_obs is not None:
-#         input_obs = processed_obs - pre_processed_obs
-#     else:
-#         input_obs = np.zeros((input_dimension,1))
-#     prev_processed_obser = processed_obs
-#     return input_obs, prev_processed_obser
-
 
 
 def preprocess_observation(input_observation, prev_processed_observation, input_dimensions):
@@ -49,13 +32,13 @@ def preprocess_observation(input_observation, prev_processed_observation, input_
     # Convert from 80 x 80 matrix to 1600 x 1 matrix
     #print(processed_observation.shape)
     processed_observation = processed_observation.astype(np.float).ravel()
-    processed_observation = processed_observation.reshape((6400,1))
+    processed_observation = processed_observation.reshape((1,input_dimensions))
     #print(processed_observation.shape)
     # subtract the previous frame from the current one so we are only processing on changes in the game
     if prev_processed_observation is not None:
         input_observation = processed_observation - prev_processed_observation
     else:
-        input_observation = np.zeros( (input_dimensions, 1) )
+        input_observation = np.zeros( (1, input_dimensions) )
     # store the previous frame so we can subtract from it next time
     prev_processed_observations = processed_observation
     #print("input observation size ", input_observation.shape)
@@ -87,7 +70,7 @@ def update_weights(weights, exp_g_sq, g_dict, decay_r, learn_r):
     eps = 1e-5
     for layer in weights.keys():
 
-        print("UPDATE Layer: ", layer)
+        #print("UPDATE Layer: ", layer)
         # print("UPDATE weights ", weights[layer].shape)
         # print("UPDATE exp_g_sq ", exp_g_sq[layer].shape)
         # print("UPDATE g_dict ", g_dict[layer].shape)
@@ -124,16 +107,18 @@ def compute_gradient(gradient_log_p, hidden_layer_val, obs_val, weights):
     #dxC_dw2 = dxC_dw2.reshape(dxC_dw2.shape[0],1)
     # print("Dc_w2 ", dxC_dw2.shape)
 
+    #print("delta ", delta_L.shape)
+    #delta_l2 = np.outer(delta_L, weights['2'])  # last layer, output layer
 
-    delta_l2 = np.outer(delta_L, weights['2'])  # last layer, output layer
-
-    #print("delta_l2: ", delta_l2.shape)
+    delta_l2 = np.dot(danny_delta, weights['2'])
+    #print("delta_l2 ", delta_l2.shape)
     delta_l2 = relu(delta_l2)
     dxC_dw1 = np.dot(delta_l2.T, obs_val)
-    #print("dxC_dw1: ", dxC_dw1.shape)
+    #print("obs_val " , obs_val.shape)
+    #print("dxc_d1 ", dxC_dw1.shape)
     return {
         '1': dxC_dw1,
-        '2': dxC_dw2
+        '2': dxC_dw2.T
     }
 
 

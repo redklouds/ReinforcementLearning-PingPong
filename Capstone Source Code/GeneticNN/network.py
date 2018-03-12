@@ -51,11 +51,17 @@ class Network:
         return vector
 
     def reinitWeights(self):
-        self._hyper_param['weights']['1'] = np.random.randn(self._hyper_param['num_hidden_neuron'], 80 * 80) / np.sqrt(
+        self._hyper_param['weights']['1'] = np.random.randn(80*80, self._hyper_param['num_hidden_neuron']) / np.sqrt(
             80 * 80)
-        self._hyper_param['weights']['2'] = np.random.randn(3, self._hyper_param['num_hidden_neuron']) / np.sqrt(
+        self._hyper_param['weights']['2'] = np.random.randn( self._hyper_param['num_hidden_neuron'], 3) / np.sqrt(
             self._hyper_param['num_hidden_neuron'])
+    def softmax1(self,vector):
 
+        # if(len(x.shape)==1):
+        #  x = x[np.newaxis,...]
+        probs = np.exp(vector - np.max(vector, axis=1, keepdims=True))
+        probs /= np.sum(probs, axis=1, keepdims=True)
+        return probs
     def softmax(self, vector):
         """Compute softmax values for each sets of scores in vector"""
         return np.exp(vector) / np.sum(np.exp(vector), axis=0)
@@ -64,12 +70,15 @@ class Network:
         self.reward = r
 
     def predict(self, input_p):
-        n1 = np.dot(self._hyper_param['weights']['1'], input_p)
+        n1 = input_p.dot(self.getHyperParam()['weights']['1'])
+
+        #n1 = np.dot(self._hyper_param['weights']['1'], input_p)
         a1 = self.ReLu(n1)
         # Second layer
-        n2 = np.dot(self._hyper_param['weights']['2'], a1)
-        a2 = self.softmax(n2)
-        return a1, a2
+        n2 = a1.dot(self.getHyperParam()['weights']['2'])
+        #n2 = np.dot(self._hyper_param['weights']['2'], a1)
+        a2 = self.softmax1(n2)
+        return a2, a1
 
     def getAction(self, vector):
         action_idx = np.argmax(vector)

@@ -12,6 +12,22 @@ import threading
 import numpy as np
 from helper_methods import preprocess_observation, discount_with_rewards, compute_gradient, update_weights
 
+def getAction(action):
+    if action == 0:
+        return 2 #go up
+    elif (action == 1):
+        return 0
+    else:
+        return 3
+def backPropt(hidden_val_stack, gradient_stack, weights, observation_stack):
+    dW2 = hidden_val_stack.T.dot(gradient_stack)
+    dh = gradient_stack.dot(weights['2'].T)
+    dh[hidden_val_stack <= 0] = 0 #derivative of ReLu
+
+    dW1 =  observation_stack.T.dot(dh)
+
+    return {'1':dW1, '2':dW2}
+
 
 class WorkThread(threading.Thread):
     # still needs works
@@ -66,30 +82,42 @@ class WorkThread(threading.Thread):
             # print("Thread-%s WOrking and rendering" % self.threadID)
             processed_obs, prev_processed_obser = preprocess_observation(obs, prev_processed_obser, 80 * 80)
 
-            #print("processed obs", processed_obs.shape)
-            #print("prev_processed", prev_processed_obser.shape)
-
-
 
 
             #a1 is the output for the hidden layer and a2 is output for the final output layer
-            a1, a2 = network.predict(processed_obs)
+            a2, a1 = network.predict(processed_obs)
             #print("a " , a1.shape)
             #print("b ", a2.shape)
-            ep_obs.append(processed_obs.reshape(processed_obs.shape[0]))
+
+            #reshape to 1X6400 below on bothe
+            #ep_obs.append(processed_obs.reshape(processed_obs.shape[0]))
+            ep_obs.append(processed_obs)
+            ep_hidden_layer_vals.append(a1)
+
+            #ep_hidden_layer_vals.append(a1.reshape(a1.shape[0]))
 
 
-            ep_hidden_layer_vals.append(a1.reshape(a1.shape[0]))
+            u = np.random.uniform()
+            probility_cum = np.cumsum(a2)
+            a = np.where(u <= probility_cum)[0][0]
 
-            action = network.getAction(a2)
+            #print("a " , a)
+            # a will be either zero, 1 or 2, depending on the random sample
+
+
+            #action = network.getAction(a2)
             # print("action: %s " % action)
-
+            action = getAction(a)
 
             obs, reward, done, info = enviroment.step(action)
 
             reward_sum += reward
             # print("reward: %s reward sum: %s" % (reward,reward_sum))
 
+            copyofsig = a2.copy()
+
+            copyofsig[0,a] -=1 # reward penilize
+            ep_gradient_log_ps.append(copyofsig)
 
             ep_rewards.append(reward)
 
@@ -98,10 +126,10 @@ class WorkThread(threading.Thread):
                 print("thread - %s REWARDED %s" % (self.threadID, reward))
 
 
-            fk_label = np.argmax(a2)  # a2 is a vector, get the index to repersent our label, 0, 1,2
-            loss_function_gradient = fk_label - a2[fk_label]
+            #fk_label = np.argmax(a2)  # a2 is a vector, get the index to repersent our label, 0, 1,2
+            #loss_function_gradient = fk_label - a2[fk_label]
             #print("loss_function_gradient " , loss_function_gradient[0])
-            ep_gradient_log_ps.append(round(loss_function_gradient[0],4))
+            #ep_gradient_log_ps.append(loss_function_gradient)
 
 
             if done:
@@ -117,7 +145,7 @@ class WorkThread(threading.Thread):
                 ep_rewards = np.vstack(ep_rewards)
 
 
-                # change the gradient of the log_ps based on discount rewards
+                #change the gradient of the log_ps based on discount rewards
                 # print("VSTACKING")
                 # print("VSTACK ep_hid_layer: ", ep_hidden_layer_vals.shape)
                 # print("VSTACK ep_obs: ", ep_obs.shape)
@@ -129,18 +157,20 @@ class WorkThread(threading.Thread):
                 #print("Gradient reward with discount array " , ep_gradient_log_ps_discounted.shape)
 
 
+                gradient = backPropt(ep_hidden_layer_vals, ep_gradient_log_ps_discounted, network.getHyperParam()['weights'], ep_obs)
 
-                gradient = compute_gradient(ep_gradient_log_ps_discounted,
-                                            ep_hidden_layer_vals,
-                                            ep_obs,
-                                            network.getHyperParam()['weights'])
+                # gradient = compute_gradient(ep_gradient_log_ps_discounted,
+                #                             ep_hidden_layer_vals,
+                #                             ep_obs,
+                #                    network.getHyperParam()['weights'])
+                #
+                #
 
-
-
-
+                #
                 # for k in gradient.keys():
-                #     print("Gradient ", k, gradient[k].shape)
-
+                #      print("Gradient ", k, gradient[k].shape)
+                for _layer in gradient:
+                    gradient_dict[_layer] += gradient[_layer]
                 # non batch updates
                 update_weights(network.getHyperParam()['weights'], exp_gradient_squared, gradient_dict,
                                network.getHyperParam()['decay_rate'], network.getHyperParam()['learning_rate'])

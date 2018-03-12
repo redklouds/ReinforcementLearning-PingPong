@@ -111,14 +111,15 @@ def compute_gradient(gradient_log_p, hidden_layer_values, observation_values, we
     delta_L = gradient_log_p
     dC_dw2 = np.dot(hidden_layer_values.T, delta_L).ravel()
 
-    print("dc_w2 ", dC_dw2.shape)
     dC_dw2 = dC_dw2.reshape(dC_dw2.shape[0],1) #should be the same as layer 2
 
-    print("dc_w2 ", dC_dw2.shape)
-
+    print("delta" , delta_L.shape)
     delta_l2 = np.outer(delta_L, weights['2'])
+    print("delta_l2 " , delta_l2.shape)
     delta_l2 = relu(delta_l2)
     dC_dw1 = np.dot(delta_l2.T, observation_values)
+    print("observation values " , observation_values.shape)
+    print("dxc_dw1 ", dC_dw1.shape)
     return {
         '1': dC_dw1,
         '2': dC_dw2
@@ -189,7 +190,7 @@ def preprocess_observations(input_observation, prev_processed_observation, input
         input_observation = np.zeros( (input_dimensions, 1) )
     # store the previous frame so we can subtract from it next time
     prev_processed_observations = processed_observation
-    print("input observation size ", input_observation.shape)
+    #print("input observation size ", input_observation.shape)
     #print("RETURNING %s" % input_observation.shape)
     return input_observation, prev_processed_observations
 

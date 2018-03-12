@@ -22,35 +22,58 @@ NUM_GENERATIONS = 50
 NUM_NETWORKS = 10
 PERCENT_NETS_TO_KILL = .25
 
+INPUT_DIMENSION = 80*80
+
+RESUME = True
 #a 32bit pythopn teroperter only allows 2GB physical page siz ein ram
 def main():
     pop = Queue() #population queue, storage for all our neural networks
     # initialize the Default starting networks
 
-    for _ in range(2):
-        f_name = "Hyper_param_P%s.p" % (_ + 1)
-        f = open(f_name, "rb")
-        _param = pickle.load(f)
-        _n = Network(_param)
-        pop.put(_n)
+    if RESUME:
+        for _ in range(2):
+            f_name = "Hyper_param_P%s.p" % (_ + 1)
+            f = open(f_name, "rb")
+            _param = pickle.load(f)
+            _n = Network(_param)
+            pop.put(_n)
 
-    for net in range(NUM_NETWORKS - 2):
-        # create random networks
-        # _net = Network(test_learning_rate, test_decay_rate,test_num_hidden_neuron,test_input_dimension)
-        lr = round(random.random(), 2)
-        hid_nur = random.randint(120, 800)
-        dr = round(random.random(), 2)
-        _w = {'1': np.random.randn(hid_nur, 80 * 80) / np.sqrt(80 * 80),
-              '2': np.random.randn(3, hid_nur) / np.sqrt(hid_nur)
-              }
-        hyper_param = {'learning_rate': lr,
-                       'num_hidden_neuron': hid_nur,
-                       'decay_rate': dr,
-                       'weights': _w
-                       }
+        for net in range(NUM_NETWORKS - 2):
+            # create random networks
+            # _net = Network(test_learning_rate, test_decay_rate,test_num_hidden_neuron,test_input_dimension)
+            lr = round(random.random(), 2)
+            hid_nur = random.randint(120, 800)
+            dr = round(random.random(), 2)
+            _w = {'1': np.random.randn(INPUT_DIMENSION, hid_nur) / np.sqrt(INPUT_DIMENSION),
+                  '2': np.random.randn(hid_nur, 3) / np.sqrt(hid_nur)
+                  }
+            hyper_param = {'learning_rate': lr,
+                           'num_hidden_neuron': hid_nur,
+                           'decay_rate': dr,
+                           'weights': _w
+                           }
 
-        _net = Network(hyper_param)
-        pop.put(_net)
+            _net = Network(hyper_param)
+            pop.put(_net)
+
+    else:
+        for net in range(NUM_NETWORKS):
+            # create random networks
+            # _net = Network(test_learning_rate, test_decay_rate,test_num_hidden_neuron,test_input_dimension)
+            lr = round(random.random(), 2)
+            hid_nur = random.randint(120, 800)
+            dr = round(random.random(), 2)
+            _w = {'1': np.random.randn(INPUT_DIMENSION, hid_nur) / np.sqrt(INPUT_DIMENSION),
+                  '2': np.random.randn(hid_nur, 3) / np.sqrt(hid_nur)
+                  }
+            hyper_param = {'learning_rate': lr,
+                           'num_hidden_neuron': hid_nur,
+                           'decay_rate': dr,
+                           'weights': _w
+                           }
+
+            _net = Network(hyper_param)
+            pop.put(_net)
 
     # prepare the enviroments
     for e in range(NUM_NETWORKS):
