@@ -20,7 +20,14 @@ def remove_background(image):
     image[image == 144] = 0
     image[image == 109] = 0
     return image
-
+def choose_action(probability):
+    random_value = np.random.uniform()
+    if random_value < probability:
+        # signifies up in openai gym
+        return 2
+    else:
+        # signifies down in openai gym
+        return 3
 
 def preprocess_observation(input_observation, prev_processed_observation, input_dimensions):
     """ convert the 210x160x3 uint8 frame into a 6400 float vector """
@@ -30,20 +37,19 @@ def preprocess_observation(input_observation, prev_processed_observation, input_
     processed_observation = remove_background(processed_observation)
     processed_observation[processed_observation != 0] = 1  # everything else (paddles, ball) just set to 1
     # Convert from 80 x 80 matrix to 1600 x 1 matrix
-    #print(processed_observation.shape)
     processed_observation = processed_observation.astype(np.float).ravel()
-    processed_observation = processed_observation.reshape((1,input_dimensions))
-    #print(processed_observation.shape)
+
     # subtract the previous frame from the current one so we are only processing on changes in the game
     if prev_processed_observation is not None:
         input_observation = processed_observation - prev_processed_observation
     else:
-        input_observation = np.zeros( (1, input_dimensions) )
+        input_observation = np.zeros(input_dimensions)
     # store the previous frame so we can subtract from it next time
     prev_processed_observations = processed_observation
-    #print("input observation size ", input_observation.shape)
+
     #print("RETURNING %s" % input_observation.shape)
     return input_observation, prev_processed_observations
+
 
 def _makeDerivativeMatrix(self, index, a):
     """
@@ -88,37 +94,24 @@ def relu(vector):
     return vector
 
 
-def compute_gradient(gradient_log_p, hidden_layer_val, obs_val, weights):
-
-    print("COMPUTE GRADIENT")
-    # print("COMPUTE GRADIENT gradient_log_ ", gradient_log_p.shape)
-    # print("COMPUTE GRADIENT hidden_layer ", hidden_layer_val.shape)
-    # print("COMPUTE GRADIENT observation val: ", obs_val.shape)
-    # print("COMPUTE GRADIENT weights 1: ", weights['1'].shape)
-    # print("COMPUTE GRADIENT weights 2: ", weights['2'].shape)
+def compute_gradient(gradient_log_p, hidden_layer_values, observation_values, weights):
+    """ See here: http://neuralnetworksanddeeplearning.com/chap2.html"""
+    #
+    # print("COMPUTER_GRAD")
+    # print("COMPUTER_GRAD gradient_log_p ", gradient_log_p.shape)
+    # print("COMPUTER_GRAD hidden_layer_val ", hidden_layer_values.shape)
+    # print("COMPUTER_GRAD oberservation_val ", observation_values.shape)
+    # print("COMPUTER_GRAD weights 1" , weights['1'].shape)
+    # print("COMPUTER_GRAD weights 2" , weights['2'].shape)
     delta_L = gradient_log_p
+    dC_dw2 = np.dot(hidden_layer_values.T, delta_L).ravel()
+    delta_l2 = np.outer(delta_L, weights['2'])
 
-    danny_delta = np.hstack([gradient_log_p,gradient_log_p,gradient_log_p])
-
-    #dxC_dw2 = np.dot(hidden_layer_val.T, delta_L).ravel()
-    dxC_dw2 = np.dot(hidden_layer_val.T,danny_delta)
-
-    #print("Dc_w2 ", dxC_dw2.shape)
-    #dxC_dw2 = dxC_dw2.reshape(dxC_dw2.shape[0],1)
-    # print("Dc_w2 ", dxC_dw2.shape)
-
-    #print("delta ", delta_L.shape)
-    #delta_l2 = np.outer(delta_L, weights['2'])  # last layer, output layer
-
-    delta_l2 = np.dot(danny_delta, weights['2'])
-    #print("delta_l2 ", delta_l2.shape)
     delta_l2 = relu(delta_l2)
-    dxC_dw1 = np.dot(delta_l2.T, obs_val)
-    #print("obs_val " , obs_val.shape)
-    #print("dxc_d1 ", dxC_dw1.shape)
+    dC_dw1 = np.dot(delta_l2.T, observation_values)
     return {
-        '1': dxC_dw1,
-        '2': dxC_dw2.T
+        '1': dC_dw1,
+        '2': dC_dw2
     }
 
 
@@ -149,7 +142,7 @@ def mutate(network):
         network.getHyperParam()[param_to_change] = random.random()
     elif param_to_change == 'weights' or param_to_change == 'num_hidden_neuron':
 #if we run into hidden layer change OR weight change we need to reinitatlize the weights , because the dimensions will need to be updated
-        network.getHyperParam()['num_hidden_neuron'] = random.randint(120, 700)
+        network.getHyperParam()['num_hidden_neuron'] = random.randint(30, 700)
         network.reinitWeights() #after changing the number of hidden neurons we need to reintalze the shape of our weights
 
 def generateChildren(parents,num_children):
@@ -157,13 +150,6 @@ def generateChildren(parents,num_children):
     for i in range(num_children):
         _param = {}
         for param in parents[0].getHyperParam().keys():
-            #if param == 'weights':
-            #    _param['weights'] = {}
-            #    print("comparing weights %s" % param)
-            #    for w in parents[0].getHyperParam()[param].keys():
-            #        _param[param][w] = random.choice(parents).getHyperParam()[param][w]
-            #else:
-            #    _param[param] = random.choice(parents).getHyperParam()[param]
             _param[param] = random.choice(parents).getHyperParam()[param]
         _net = Network(_param)
         spawn.append(_net)

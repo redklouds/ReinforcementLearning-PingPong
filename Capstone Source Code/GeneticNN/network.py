@@ -51,9 +51,9 @@ class Network:
         return vector
 
     def reinitWeights(self):
-        self._hyper_param['weights']['1'] = np.random.randn(80*80, self._hyper_param['num_hidden_neuron']) / np.sqrt(
+        self._hyper_param['weights']['1'] = np.random.randn(self._hyper_param['num_hidden_neuron'],80*80) / np.sqrt(
             80 * 80)
-        self._hyper_param['weights']['2'] = np.random.randn( self._hyper_param['num_hidden_neuron'], 3) / np.sqrt(
+        self._hyper_param['weights']['2'] = np.random.randn( self._hyper_param['num_hidden_neuron']) / np.sqrt(
             self._hyper_param['num_hidden_neuron'])
     def softmax1(self,vector):
         # if(len(x.shape)==1):
@@ -74,6 +74,16 @@ class Network:
 
     def setReward(self, r):
         self.reward = r
+    def relu(self,v):
+        v[v < 0] =0
+        return v
+
+    def predict1(self, input_p ):
+        hidden_val = np.dot(self.getHyperParam()['weights']['1'], input_p)
+        hidden_val = self.relu(hidden_val)
+        out_val = np.dot(hidden_val, self.getHyperParam()['weights']['2'])
+        out_val = self.sigmoid(out_val)
+        return hidden_val, out_val
 
 
     def predict(self, input_p):
@@ -87,6 +97,8 @@ class Network:
         a2 = self.softmax1(n2)
         return a2, a1
 
+    def sigmoid(self, x):
+        return 1.0 / (1.0 + np.exp(-x))
     def getAction(self, vector):
         action_idx = np.argmax(vector)
         if action_idx == 0:

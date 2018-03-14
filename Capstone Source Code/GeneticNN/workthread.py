@@ -9,8 +9,22 @@
 #=#|
 #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#\|
 import threading
+
 import numpy as np
-from helper_methods import preprocess_observation, discount_with_rewards, compute_gradient, update_weights
+
+from old_generation.helper_methods import preprocess_observation, discount_with_rewards, compute_gradient, \
+    update_weights
+
+BATCH_SIZE = 8 # number of rounds before we update our network
+
+def choose_action(probability):
+    random_value = np.random.uniform()
+    if random_value < probability:
+        # signifies up in openai gym
+        return 2
+    else:
+        # signifies down in openai gym
+        return 3
 
 def getAction(action):
     if action == 0:
@@ -73,7 +87,7 @@ class WorkThread(threading.Thread):
         ep_obs = []
         ep_gradient_log_ps = []
         ep_rewards = []
-
+        num_rounds = 0
         while True:
 
             # self.QueueLock.acquire()
@@ -85,42 +99,34 @@ class WorkThread(threading.Thread):
 
 
             #a1 is the output for the hidden layer and a2 is output for the final output layer
-            a2, a1 = network.predict(processed_obs)
+
+            hidd_lay, up_prob = network.predict1(processed_obs)
+            #a2, a1 = network.predict(processed_obs)
             #print("a " , a1.shape)
             #print("b ", a2.shape)
 
             #reshape to 1X6400 below on bothe
             #ep_obs.append(processed_obs.reshape(processed_obs.shape[0]))
+
+
             ep_obs.append(processed_obs)
-            ep_hidden_layer_vals.append(a1)
+            ep_hidden_layer_vals.append(hidd_lay)
 
-            #ep_hidden_layer_vals.append(a1.reshape(a1.shape[0]))
-
-
-            u = np.random.uniform()
-            probility_cum = np.cumsum(a2)
-            a = np.where(u <= probility_cum)[0][0]
-
-            #print("a " , a)
-            # a will be either zero, 1 or 2, depending on the random sample
-
-
+            action = choose_action(up_prob)
             #action = network.getAction(a2)
-            # print("action: %s " % action)
-            action = getAction(a)
 
             obs, reward, done, info = enviroment.step(action)
 
             reward_sum += reward
             # print("reward: %s reward sum: %s" % (reward,reward_sum))
 
-            copyofsig = a2.copy()
-
-            copyofsig[0,a] -=1 # reward penilize
-            ep_gradient_log_ps.append(copyofsig)
 
             ep_rewards.append(reward)
 
+
+            fake_lbl = 1 if action == 2 else 0
+            loss_func_grad = fake_lbl - up_prob
+            ep_gradient_log_ps.append(loss_func_grad)
             # print("thread-%s reward: %s | done: %s | " %( self.threadID, reward, done))
             if (reward > 0.0):
                 print("thread - %s REWARDED %s" % (self.threadID, reward))
@@ -133,6 +139,7 @@ class WorkThread(threading.Thread):
 
 
             if done:
+                num_rounds += 1
 
                 # print("DONE ep_hid_layer ", ep_hidden_layer_vals[0].shape)
                 # print("DONE ep_obs ", ep_obs[0].shape)
@@ -157,7 +164,13 @@ class WorkThread(threading.Thread):
                 #print("Gradient reward with discount array " , ep_gradient_log_ps_discounted.shape)
 
 
-                gradient = backPropt(ep_hidden_layer_vals, ep_gradient_log_ps_discounted, network.getHyperParam()['weights'], ep_obs)
+                #gradient = backPropt(ep_hidden_layer_vals, ep_gradient_log_ps_discounted, network.getHyperParam()['weights'], ep_obs)
+                gradient = compute_gradient(
+                    ep_gradient_log_ps_discounted,
+                    ep_hidden_layer_vals,
+                    ep_obs,
+                    network.getHyperParam()['weights']
+                )
 
                 # gradient = compute_gradient(ep_gradient_log_ps_discounted,
                 #                             ep_hidden_layer_vals,
@@ -172,16 +185,24 @@ class WorkThread(threading.Thread):
                 for _layer in gradient:
                     gradient_dict[_layer] += gradient[_layer]
                 # non batch updates
-                update_weights(network.getHyperParam()['weights'], exp_gradient_squared, gradient_dict,
+
+                if num_rounds % BATCH_SIZE == 0:
+                    print("updating weights")
+                    update_weights(network.getHyperParam()['weights'], exp_gradient_squared, gradient_dict,
                                network.getHyperParam()['decay_rate'], network.getHyperParam()['learning_rate'])
 
-                print("thread-%s has finished playing... reward is: %s" % (self.threadID, reward_sum))
-                # put the network back into the result array
-                network.reward = reward_sum
-                self.QueueLock.acquire()
-                result_array.append(network)
-                self.QueueLock.release()
+                    print("thread-%s has finished playing... reward is: %s" % (self.threadID, reward_sum))
+                    # put the network back into the result array
+                    network.reward = reward_sum
+                    self.QueueLock.acquire()
+                    result_array.append(network)
+                    self.QueueLock.release()
 
-                #prev_processed_obser = None
-                break
+                    #prev_processed_obser = None
+                    break
 
+                ep_hidden_layer_vals, ep_obs, ep_gradient_log_ps, ep_rewards = [], [], [], [] # reset the current round values
+                obs = enviroment.reset()
+                running_reward = reward_sum if running_reward is None else running_reward * 0.99 + reward_sum * 0.01
+                reward_sum = 0
+                prev_processed_obser = None
