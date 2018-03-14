@@ -14,16 +14,29 @@ import random
 
 
 def downsample(image):
+    """
+    reduce the resolution of the image
+    """
     return image[::2, ::2, :]
 def remove_color(image):
-    """ upon inspection the third dimension is the RGB value"""
+    """
+    Removes all the Color of the raw image
+    """
     return image[:, :, 0]
+
 def remove_background(image):
+    """
+    :param image:
+    :return:
+    """
     image[image == 144] = 0
     image[image == 109] = 0
     return image
+
 def choose_action(probability):
+
     random_value = np.random.uniform()
+    #print("probability" + str(random_value))
     if random_value < probability:
         # signifies up in openai gym
         return 2
@@ -77,11 +90,6 @@ def update_weights(weights, exp_g_sq, g_dict, decay_r, learn_r):
     # done
     eps = 1e-5
     for layer in weights.keys():
-
-        #print("UPDATE Layer: ", layer)
-        # print("UPDATE weights ", weights[layer].shape)
-        # print("UPDATE exp_g_sq ", exp_g_sq[layer].shape)
-        # print("UPDATE g_dict ", g_dict[layer].shape)
         g = g_dict[layer]
         exp_g_sq[layer] = decay_r * exp_g_sq[layer] + (1 - decay_r) * g ** 2
 
@@ -97,18 +105,12 @@ def relu(vector):
 
 
 def compute_gradient(gradient_log_p, hidden_layer_values, observation_values, weights):
-    """ See here: http://neuralnetworksanddeeplearning.com/chap2.html"""
-    #
-    # print("COMPUTER_GRAD")
-    # print("COMPUTER_GRAD gradient_log_p ", gradient_log_p.shape)
-    # print("COMPUTER_GRAD hidden_layer_val ", hidden_layer_values.shape)
-    # print("COMPUTER_GRAD oberservation_val ", observation_values.shape)
-    # print("COMPUTER_GRAD weights 1" , weights['1'].shape)
-    # print("COMPUTER_GRAD weights 2" , weights['2'].shape)
+    """
+
+    """
     delta_L = gradient_log_p
     dC_dw2 = np.dot(hidden_layer_values.T, delta_L).ravel()
     delta_l2 = np.outer(delta_L, weights['2'])
-
     delta_l2 = relu(delta_l2)
     dC_dw1 = np.dot(delta_l2.T, observation_values)
     return {

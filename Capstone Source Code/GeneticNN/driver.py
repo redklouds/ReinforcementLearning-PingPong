@@ -19,13 +19,14 @@ from workthread import WorkThread
 from exitobject import ExitObject
 from helper_methods import generateChildren, mutate
 
-NUM_GENERATIONS = 600
-NUM_NETWORKS = 5
+NUM_GENERATIONS = 800
+NUM_NETWORKS = 15
 PERCENT_NETS_TO_KILL = .45
 NUM_PARENTS = 3
 INPUT_DIMENSION = 80*80
-RESUME = False
-NUM_ROUNDS = 5 #value determines how many rounds of ping-pong out of 21(is a round) do we play until we update our weights
+RESUME = True
+INCLUDE_CAPARSION = True
+NUM_ROUNDS = 10 #value determines how many rounds of ping-pong out of 21(is a round) do we play until we update our weights
 # and return to a next generation, the more we train the longer, but the better results we will have from a good gradient batch to learn from
 
 def generateRandomNetworks(num_networks, queue):
@@ -51,7 +52,7 @@ def generateRandomNetworks(num_networks, queue):
         _net = Network(hyper_param)
         queue.put(_net)
 
-def makeThreads(num_threads, thread_storage, thread_exit_obj, thread_work_que_lock, thread_work_que ):
+def makeThreads(num_threads, thread_storage, thread_exit_obj, thread_work_que_lock, thread_work_que , threadPrefix = None):
     """
     Makes the number of threads and starts them
     num_thread: number threads to make and start
@@ -61,7 +62,10 @@ def makeThreads(num_threads, thread_storage, thread_exit_obj, thread_work_que_lo
     thread_work_que: the queue that the threads get their work from
     """
     for threadID in range(num_threads):
-        th = WorkThread(threadID, thread_exit_obj, thread_work_que_lock, thread_work_que)
+        threadName = threadID
+        if threadPrefix is not None:
+            threadName = "%s %s" %(threadPrefix, threadID)
+        th = WorkThread(threadName, thread_exit_obj, thread_work_que_lock, thread_work_que)
         thread_storage.append(th)
         th.start()
 
@@ -93,58 +97,13 @@ def main():
         for _param in range(NUM_PARENTS):
             _n = Network(data[_param])
             pop.put(_n)
-        # for resumed_network in range(2):
-        #     f_name = "Hyper_param_P%s.p" % (_ + 1)
-        #     f = open(f_name, "rb")
-        #     _param = pickle.load(f)
-        #     _n = Network(_param)
-        #     pop.put(_n)
 
 
         generateRandomNetworks( (NUM_NETWORKS - NUM_PARENTS ) , pop )
-        # for net in range(NUM_NETWORKS - 2):
-        #     # create random networks
-        #     # _net = Network(test_learning_rate, test_decay_rate,test_num_hidden_neuron,test_input_dimension)
-        #     lr = round(random.random(), 2)
-        #     hid_nur = random.randint(120, 800)
-        #     dr = round(random.random(), 2)
-        #     _w = {'1': np.random.randn(hid_nur, INPUT_DIMENSION) / np.sqrt(INPUT_DIMENSION),
-        #           '2': np.random.randn(hid_nur) / np.sqrt(hid_nur)
-        #           }
-        #     hyper_param = {'learning_rate': lr,
-        #                    'num_hidden_neuron': hid_nur,
-        #                    'decay_rate': dr,
-        #                    'weights': _w
-        #                    }
-        #
-        #     _net = Network(hyper_param)
-        #     pop.put(_net)
 
     else:
         generateRandomNetworks(NUM_NETWORKS, pop)
-        # for net in range(NUM_NETWORKS):
-        #     # create random networks
-        #     # _net = Network(test_learning_rate, test_decay_rate,test_num_hidden_neuron,test_input_dimension)
-        #     lr = round(random.random(), 2)
-        #     hid_nur = random.randint(120, 800)
-        #     dr = round(random.random(), 2)
-        #     _w = {'1': np.random.randn(hid_nur, INPUT_DIMENSION) / np.sqrt(INPUT_DIMENSION),
-        #           '2': np.random.randn(hid_nur) / np.sqrt(hid_nur)
-        #           }
-        #     hyper_param = {'learning_rate': lr,
-        #                    'num_hidden_neuron': hid_nur,
-        #                    'decay_rate': dr,
-        #                    'weights': _w
-        #                    }
-        #
-        #     _net = Network(hyper_param)
-        #     pop.put(_net)
 
-    # # prepare the environments
-    # for e in range(NUM_NETWORKS):
-    #     # create a environments for each network
-    #     envs.append(gym.make("Pong-v0"))
-    #
     makeEnvironments(NUM_NETWORKS, environment_list)
     # place where we put work that needs to be processed
     workQueue = Queue()
@@ -154,17 +113,45 @@ def main():
     # create our threads first
     threads = []
 
-    makeThreads(NUM_NETWORKS, threads,thExitController,workQueueLock, workQueue)
-    # for threadID in range(NUM_NETWORKS):
-    #     th = WorkThread(threadID, thExitController, workQueueLock, workQueue)
-    #     threads.append(th)
-    #     th.start()
 
+
+
+
+    #number of networks ot make, the thread_list, the exit object, synchronized lock, and the work Queue
+    makeThreads(NUM_NETWORKS , threads,thExitController,workQueueLock, workQueue)
+
+
+##############################################################################################
+        ###################################################################
+
+    if INCLUDE_CAPARSION:
+        __env = gym.make("Pong-v0")
+        makeThreads(1, threads, thExitController,workQueueLock,workQueue, "TRTR" )
+
+        f = open("comparison.p", "rb")
+        a = pickle.load(f)
+        f.close()
+        __net = Network(a, name="COMPARSION")
+        __work = {
+            'net': __net,
+            'env': __env,
+            'tag': True,
+            'num_rounds': NUM_ROUNDS,
+        }
+        workQueueLock.acquire()
+        workQueue.put(__work)
+        workQueueLock.release()
+
+
+    ########################################################################
+    #########################################################################################
     for generation in range(NUM_GENERATIONS):
+        result_arr = []
+
         print("[+] Starting Generation-%s" % generation)
         print("[+] Size of out population %s" % pop.qsize())
         print("[+] Checking... Size of work queue %s" % workQueue.qsize())
-        result_arr = []
+
         # grab our lock so we can synchronize the workQueue and prevent any unwanted threads from corrupting the data
         workQueueLock.acquire()
         for i in range(NUM_NETWORKS):

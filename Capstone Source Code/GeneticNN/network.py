@@ -19,14 +19,14 @@ class Network:
         }
     """
 
-    def __init__(self, hyper_param=None, input_dimension= (80*80) ) :
+    def __init__(self, hyper_param=None, input_dimension=(80*80), name=None ) :
         self.reward = 0 #stored reward value, used in comparing a fitness function to this network
         self.input_dimension = input_dimension #input dimensions for this neural network
         if hyper_param is None:
             self.setupDefaultParam()
         else:
             self._hyper_param = hyper_param  #
-
+        self.net_name = name
     def setupDefaultParam(self):
         """
         If network does not have a hyper parameter initialize this network with random values
@@ -126,5 +126,8 @@ class Network:
             return 3  # go down
 
     def __str__(self):
-        return "LR: %s | #HidNur: %s | DR: %s " % (
+        retString = "LR: %s | #HidNur: %s | DR: %s " % (
         self._hyper_param['learning_rate'], self._hyper_param['num_hidden_neuron'], self._hyper_param['decay_rate'])
+        if self.net_name is not None:
+            retString += "NAME %s " % self.net_name
+        return retString

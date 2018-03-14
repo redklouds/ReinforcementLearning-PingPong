@@ -8,31 +8,13 @@
 #=#| Usage:
 #=#|
 #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#\|
-import threading
-
+import threading,pickle
 import numpy as np
-
 from helper_methods import preprocess_observation, discount_with_rewards, compute_gradient, \
-    update_weights
+    update_weights, choose_action
 
 #BATCH_SIZE = 1 # number of rounds before we update our network
 
-def choose_action(probability):
-    random_value = np.random.uniform()
-    if random_value < probability:
-        # signifies up in openai gym
-        return 2
-    else:
-        # signifies down in openai gym
-        return 3
-
-def getAction(action):
-    if action == 0:
-        return 2 #go up
-    elif (action == 1):
-        return 0
-    else:
-        return 3
 def backPropt(hidden_val_stack, gradient_stack, weights, observation_stack):
     dW2 = hidden_val_stack.T.dot(gradient_stack)
     dh = gradient_stack.dot(weights['2'].T)
@@ -79,15 +61,18 @@ class WorkThread(threading.Thread):
     def doWork(self, work_obj):
     #def doWork(self, network, enviroment, result_array):
         print("Thread-%s doing work on... %s" % (self.threadID, work_obj['net'].__str__()))
+
+
+        #current network session variables
         environment = work_obj['env']
         network_model = work_obj['net']
         obs = environment.reset()
-        reward_sum = 0
-        prev_processed_obser = None
-        running_reward = None
-        exp_gradient_squared = {}
-        gradient_dict = {}
-        gamma = .99
+        reward_sum = 0 #check
+        prev_processed_obser = None #check
+        running_reward = None #chcke
+        exp_gradient_squared = {} #check
+        gradient_dict = {}  #check
+        gamma = .99 #check
 
         for layer in network_model.getHyperParam()['weights'].keys():
             # basically populating the expected Gradient values, used for learning later on
@@ -99,7 +84,7 @@ class WorkThread(threading.Thread):
         ep_obs = []
         ep_gradient_log_ps = []
         ep_rewards = []
-        num_rounds = 0
+        num_rounds = 0 #check
         while True:
 
             # self.QueueLock.acquire()
@@ -137,8 +122,6 @@ class WorkThread(threading.Thread):
                 ep_rewards = np.vstack(ep_rewards)
 
                 ep_gradient_log_ps_discounted = discount_with_rewards(ep_gradient_log_ps, ep_rewards, gamma)
-                #print("Gradient reward with discount array " , ep_gradient_log_ps_discounted.shape)
-
 
                 #gradient = backPropt(ep_hidden_layer_vals, ep_gradient_log_ps_discounted, network.getHyperParam()['weights'], ep_obs)
                 gradient = compute_gradient(
@@ -152,22 +135,38 @@ class WorkThread(threading.Thread):
                 # non batch updates
 
                 if num_rounds % work_obj['num_rounds'] == 0:
-                    print("updating weights")
+                    #every num_rounds update the weight
                     update_weights(network_model.getHyperParam()['weights'], exp_gradient_squared, gradient_dict,
                                network_model.getHyperParam()['decay_rate'], network_model.getHyperParam()['learning_rate'])
 
                     print("thread-%s has finished playing... reward is: %s" % (self.threadID, reward_sum))
                     # put the network back into the result array
                     network_model.reward = reward_sum
-                    self.QueueLock.acquire()
-                    work_obj['result_array'].append(network_model)
-                    self.QueueLock.release()
 
-                    #prev_processed_obser = None
-                    break
+                    if "tag" in work_obj.keys():
+                        print("[++++} Comparison network has finished the batch training , and just updated weights")
+                        print("[++++] Stats: Thread-%s running reward: %s" % (self.threadID, reward_sum))
+                        #"this is the tagged network"
+                        #save its current progress and continue the loop
+                        f = open("comparison.p","wb")
+                        pickle.dump(network_model.getHyperParam(), f)
+                        f.close()
+
+                    else:
+
+                        self.QueueLock.acquire()
+                        work_obj['result_array'].append(network_model)
+                        self.QueueLock.release()
+
+                        #prev_processed_obser = None
+
+                        break
 
                 ep_hidden_layer_vals, ep_obs, ep_gradient_log_ps, ep_rewards = [], [], [], [] # reset the current round values
-                obs = environment.reset()
+                obs = environment.reset() # new round reset the environment
                 running_reward = reward_sum if running_reward is None else running_reward * 0.99 + reward_sum * 0.01
+
+                #some simple current round statistics
+                print("Thread-%s Round Finished, reward total: %s, running mean: %s" %(self.threadID, reward_sum, running_reward))
                 reward_sum = 0
                 prev_processed_obser = None
