@@ -12,6 +12,8 @@ import numpy as np
 import random
 class Network:
     """
+    This is the Neural Network object, which stores the hyper paramters we are trying to
+    Optimize, this Object contains forward proprogation methods, as well as activation functions
         {
             'learning_rate':int,
             'decay_rate':float,
@@ -27,10 +29,12 @@ class Network:
         else:
             self._hyper_param = hyper_param  #
         self.net_name = name
+
     def setupDefaultParam(self):
         """
-        If network does not have a hyper parameter initialize this network with random values
-        :return:
+        If network does not have a hyper parameter initialize this network with random values,
+        the random values are the hyper parameters of this network.
+        :return:None
         """
 
         lr = round(random.random(), 2) # learning_rate [0,1)
@@ -39,10 +43,10 @@ class Network:
 
         _w = {}
         self._hyper_param = {'learning_rate': lr,
-                       'num_hidden_neuron': hid_nur,
-                       'decay_rate': dr,
-                       'weights': _w
-                       }
+                             'num_hidden_neuron': hid_nur,
+                             'decay_rate': dr,
+                             'weights': _w
+                             }
         self.randomizeWeights(hid_nur, self.input_dimension)
 
     def randomizeWeights(self, num_hidden_nur, num_input_nur):
@@ -60,19 +64,29 @@ class Network:
         self._hyper_param['weights']['2'] = np.random.randn(num_hidden_nur) / np.sqrt(num_hidden_nur)
 
     def getHyperParam(self):
+        """
+        Getter for object hyper parameters
+        :return: a dict of the hyper parameters stored within this object
+        """
         return self._hyper_param
 
     def ReLu(self, vector):
+        """
+        ReLu activation function
+        :param vector: Vector, Numpy
+        :return: Vector
+        """
         vector[vector < 0] = 0
         return vector
 
-    def reinitWeights(self):
-        self._hyper_param['weights']['1'] = np.random.randn(self._hyper_param['num_hidden_neuron'],80*80) / np.sqrt(
-            80 * 80)
-        self._hyper_param['weights']['2'] = np.random.randn( self._hyper_param['num_hidden_neuron']) / np.sqrt(
-            self._hyper_param['num_hidden_neuron'])
-
     def softmax1(self,vector):
+        """
+        Softmax activation function that uses, a log-softmax variant
+        this is used if we have values that could potentially go out of bounds
+        we esstentially noramlize our output
+        :param vector:
+        :return: Vector
+        """
         # if(len(x.shape)==1):
         #  x = x[np.newaxis,...]
         probs = np.exp(vector - np.max(vector, axis=1, keepdims=True))
@@ -80,32 +94,44 @@ class Network:
         return probs
 
     def softmax(self, vector):
-        """Compute softmax values for each sets of scores in vector"""
+        """Compute softmax values for each sets of scores in vector
+        :param vector
+        :return vector
+        """
         return np.exp(vector) / np.sum(np.exp(vector))
 
-    def softmax3(self, v):
-        x_exp = np.exp(v)
-        x_sum = np.sum(x_exp, axis=1, keepdims=True)
-        s = x_exp/x_sum
-        return s
 
     def setReward(self, r):
         self.reward = r
-    def relu(self,v):
-        v[v < 0] =0
-        return v
+    def getReward(self):
+        return self.reward
 
     def predict1(self, input_p ):
-        hidden_val = np.dot(self.getHyperParam()['weights']['1'], input_p)
-        hidden_val = self.relu(hidden_val)
-        out_val = np.dot(hidden_val, self.getHyperParam()['weights']['2'])
-        out_val = self.sigmoid(out_val)
-        return hidden_val, out_val
+        """
+        This is our forward propagation method, using a Relu Activation Function, and a LogSigmoid Output activation function
+        the last output will be a floating point value, in which a probability of an action to perform
+        :param input_p: an 80*80 vector
+        :return:
+        """
+        #first layer pass
+        n1 = np.dot(self.getHyperParam()['weights']['1'], input_p)
+        a1 = self.ReLu(n1)
+        #second layer pass
+        n2 = np.dot(a1, self.getHyperParam()['weights']['2'])
+        a2 = self.sigmoid(n2)
+
+        return n1, a2
 
 
     def predict(self, input_p):
+        """
+        This is our forward propagation method, using a ReLu activation function in the hidden layer, and a softmax activation
+        Function for the output layer this function outputs 3 values of probability distribution, the higher of the values
+        distinguish which action to most likely, or which class is most-likely to be choosen
+        :param input_p:
+        :return:
+        """
         n1 = input_p.dot(self.getHyperParam()['weights']['1'])
-
         #n1 = np.dot(self._hyper_param['weights']['1'], input_p)
         a1 = self.ReLu(n1)
         # Second layer
@@ -126,8 +152,12 @@ class Network:
             return 3  # go down
 
     def __str__(self):
+        """
+        To Print out our network , Overrides the toSTring Method
+        :return: String
+        """
         retString = "LR: %s | #HidNur: %s | DR: %s " % (
-        self._hyper_param['learning_rate'], self._hyper_param['num_hidden_neuron'], self._hyper_param['decay_rate'])
+            self._hyper_param['learning_rate'], self._hyper_param['num_hidden_neuron'], self._hyper_param['decay_rate'])
         if self.net_name is not None:
             retString += "NAME %s " % self.net_name
         return retString

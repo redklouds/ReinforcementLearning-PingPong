@@ -12,7 +12,6 @@ import numpy as np
 from network import Network
 import random
 
-
 def downsample(image):
     """
     reduce the resolution of the image
@@ -66,6 +65,7 @@ def preprocess_observation(input_observation, prev_processed_observation, input_
     return input_observation, prev_processed_observations
 
 
+
 def _makeDerivativeMatrix(self, index, a):
     """
         Computes the corresponding jaccbian matrix for the derivative matrix
@@ -87,7 +87,15 @@ def _makeDerivativeMatrix(self, index, a):
 
 
 def update_weights(weights, exp_g_sq, g_dict, decay_r, learn_r):
-    # done
+    """
+    Standard Konnen Weight updating
+    :param weights: Dict/Hash, weights of the network trying to update
+    :param exp_g_sq: Numpy, Vector, of the gradients squared
+    :param g_dict: Numpy,Vector, gradient values for each frame
+    :param decay_r: Float, Decay Rate to be applied
+    :param learn_r: Float, Learning Rate to be applied
+    :return: None
+    """
     eps = 1e-5
     for layer in weights.keys():
         g = g_dict[layer]
@@ -96,22 +104,33 @@ def update_weights(weights, exp_g_sq, g_dict, decay_r, learn_r):
         weights[layer] += (learn_r * g) / (np.sqrt(exp_g_sq[layer] + eps))
 
         g_dict[layer] = np.zeros_like(weights[layer])
-
-
-def relu(vector):
-    # done
+def ReLu(vector):
+    """
+    ReLu activation function
+    :param vector: Vector, Numpy
+    :return: Vector
+    """
     vector[vector < 0] = 0
     return vector
 
-
 def compute_gradient(gradient_log_p, hidden_layer_values, observation_values, weights):
     """
-
+    Compute the gradient, using backprop given the reward/error values for each frame within
+    the playing field
+    :param gradient_log_p: Numpy, Vector Array
+    :param hidden_layer_values:  Numpy, Matrix Array of the weights for the hidden layer for
+    each frame
+    :param observation_values: Numpy,Matrix each raw frame by frame values
+    :param weights: Numpy, Matrix, the weights of the respective neural network
+    :return: Dict of the gradients used to update the network
     """
+    #propogate the output values+rewards+errors
     delta_L = gradient_log_p
+    #propogate then with the hidden input layer
     dC_dw2 = np.dot(hidden_layer_values.T, delta_L).ravel()
+    #find the cross entropy of the input values with the hidden outvalues
     delta_l2 = np.outer(delta_L, weights['2'])
-    delta_l2 = relu(delta_l2)
+    delta_l2 = ReLu(delta_l2)
     dC_dw1 = np.dot(delta_l2.T, observation_values)
     return {
         '1': dC_dw1,

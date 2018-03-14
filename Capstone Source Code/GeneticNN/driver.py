@@ -8,17 +8,13 @@
 #=#| Usage:
 #=#|
 #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#\|
-from queue import Queue
-import gym
-import numpy as np
-import pickle
-import random
-import threading
-from network import Network
-from workthread import WorkThread
-from exitobject import ExitObject
+from queue import Queue #Work Queue, and Population Queue
+import gym, pickle, random, threading #openai Environments, save weight state, random generator, threading support
+from network import Network # neural network object
+from exitobject import ExitObject # threaded exit object
 from helper_methods import generateChildren, mutate
-
+import numpy as np
+from workthread import WorkThread
 NUM_GENERATIONS = 800
 NUM_NETWORKS = 15
 PERCENT_NETS_TO_KILL = .45
@@ -29,7 +25,18 @@ INCLUDE_CAPARSION = True
 NUM_ROUNDS = 10 #value determines how many rounds of ping-pong out of 21(is a round) do we play until we update our weights
 # and return to a next generation, the more we train the longer, but the better results we will have from a good gradient batch to learn from
 
-def generateRandomNetworks(num_networks, queue):
+
+
+def makeEnvironments(num_env, list):
+    """
+    Helper to initialize the number of given  environments
+    num_env: number of environments to initialize
+    list: populate the list with these environments
+    """
+    for env in range(num_env):
+        list.append(gym.make("Pong-v0"))
+
+def makeRandomNetworks(input_dimensions,num_networks, queue):
     """
     makes the number of random Neural Networks with random parameters, and puts them into the given
     Queue
@@ -40,7 +47,7 @@ def generateRandomNetworks(num_networks, queue):
         lr = round(random.random(), 2)
         hid_nur = random.randint(120, 800)
         dr = round(random.random(), 2)
-        _w = {'1': np.random.randn(hid_nur, INPUT_DIMENSION) / np.sqrt(INPUT_DIMENSION),
+        _w = {'1': np.random.randn(hid_nur, input_dimensions) / np.sqrt(input_dimensions),
               '2': np.random.randn(hid_nur) / np.sqrt(hid_nur)
               }
         hyper_param = {'learning_rate': lr,
@@ -51,6 +58,7 @@ def generateRandomNetworks(num_networks, queue):
 
         _net = Network(hyper_param)
         queue.put(_net)
+
 
 def makeThreads(num_threads, thread_storage, thread_exit_obj, thread_work_que_lock, thread_work_que , threadPrefix = None):
     """
@@ -69,17 +77,9 @@ def makeThreads(num_threads, thread_storage, thread_exit_obj, thread_work_que_lo
         thread_storage.append(th)
         th.start()
 
-def makeEnvironments(num_env, list):
-    """
-    Helper to initialize the number of given  environments
-    num_env: number of environments to initialize
-    list: populate the list with these environments
-    """
-    for env in range(num_env):
-        list.append(gym.make("Pong-v0"))
 
 
-#a 32bit pythopn teroperter only allows 2GB physical page siz ein ram
+#a 32bit python Interperter only allows 2GB physical page siz ein ram
 def main():
     environment_list = []
     pop = Queue() #population queue, storage for all our neural networks
@@ -99,10 +99,10 @@ def main():
             pop.put(_n)
 
 
-        generateRandomNetworks( (NUM_NETWORKS - NUM_PARENTS ) , pop )
+        makeRandomNetworks( INPUT_DIMENSION, (NUM_NETWORKS - NUM_PARENTS ) , pop )
 
     else:
-        generateRandomNetworks(NUM_NETWORKS, pop)
+        makeRandomNetworks(INPUT_DIMENSION, NUM_NETWORKS, pop)
 
     makeEnvironments(NUM_NETWORKS, environment_list)
     # place where we put work that needs to be processed
@@ -115,14 +115,12 @@ def main():
 
 
 
-
-
     #number of networks ot make, the thread_list, the exit object, synchronized lock, and the work Queue
     makeThreads(NUM_NETWORKS , threads,thExitController,workQueueLock, workQueue)
 
 
-##############################################################################################
-        ###################################################################
+    ##############################################################################################
+    ###################################################################
 
     if INCLUDE_CAPARSION:
         __env = gym.make("Pong-v0")
@@ -190,7 +188,7 @@ def main():
             parent_index = 0
             for i in range(len(result_arr)):
                 #search for the next largest winner
-                if result_arr[i].reward > result_arr[parent_index].reward:
+                if result_arr[i].getReward() > result_arr[parent_index].getReward():
                     parent_index = i
             parents.append(result_arr[parent_index])# add this network to the parents population
             del result_arr[parent_index]# remove the parent from the population(general)
