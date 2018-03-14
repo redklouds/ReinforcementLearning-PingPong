@@ -9,7 +9,7 @@
 #=#|
 #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#\|
 import numpy as np
-
+import random
 class Network:
     """
         {
@@ -19,29 +19,45 @@ class Network:
         }
     """
 
-    def __init__(self, hyper_param=None):
-        # def __init__(self, lr, dr, num_hidden_neurons, input_dimension):
+    def __init__(self, hyper_param=None, input_dimension= (80*80) ) :
+        self.reward = 0 #stored reward value, used in comparing a fitness function to this network
+        self.input_dimension = input_dimension #input dimensions for this neural network
         if hyper_param is None:
             self.setupDefaultParam()
         else:
             self._hyper_param = hyper_param  #
-        self.reward = 0
 
     def setupDefaultParam(self):
-        test_learning_rate = 0.7
-        test_num_hidden_neurons = 200
-        test_decay_rate = .98
-        test_input_dimension = 80 * 80
-        test_weights = {
-            '1': np.random.randn(test_num_hidden_neurons, test_input_dimension) / np.sqrt(test_input_dimension),
-            '2': np.random.randn(3, test_num_hidden_neurons) / np.sqrt(test_num_hidden_neurons)
-            }
-        self._hyper_param = {
-            'learning_rate': test_learning_rate,
-            'num_hidden_neuron': test_num_hidden_neurons,
-            'decay_rate': test_decay_rate,
-            'weights': test_weights
-        }
+        """
+        If network does not have a hyper parameter initialize this network with random values
+        :return:
+        """
+
+        lr = round(random.random(), 2) # learning_rate [0,1)
+        dr = round(random.random(), 2) # decay_rate [0,1)
+        hid_nur = random.randint(20, 700) #number hidden neurons [20, 700)
+
+        _w = {}
+        self._hyper_param = {'learning_rate': lr,
+                       'num_hidden_neuron': hid_nur,
+                       'decay_rate': dr,
+                       'weights': _w
+                       }
+        self.randomizeWeights(hid_nur, self.input_dimension)
+
+    def randomizeWeights(self, num_hidden_nur, num_input_nur):
+        """
+        PRECONDITION: network must be initialized with a hyper-parameter 'weights' hash/dict prior to calling
+        this method
+        :param num_hidden_nur: number of hidden neurons
+        :param num_input_nur: number of input neurons
+        :return: None
+        """
+        assert 'weights' in self._hyper_param.keys(), "ERROR with object initalization, missing 'weights' hyper param"
+        assert type(dict) == type(self._hyper_param['weights']), "Error hyper param, 'weights' initalize with wrong type, needs DICT"
+
+        self._hyper_param['weights']['1'] = np.random.randn(num_hidden_nur, num_input_nur) / np.sqrt(num_hidden_nur)
+        self._hyper_param['weights']['2'] = np.random.randn(num_hidden_nur) / np.sqrt(num_hidden_nur)
 
     def getHyperParam(self):
         return self._hyper_param
@@ -55,6 +71,7 @@ class Network:
             80 * 80)
         self._hyper_param['weights']['2'] = np.random.randn( self._hyper_param['num_hidden_neuron']) / np.sqrt(
             self._hyper_param['num_hidden_neuron'])
+
     def softmax1(self,vector):
         # if(len(x.shape)==1):
         #  x = x[np.newaxis,...]

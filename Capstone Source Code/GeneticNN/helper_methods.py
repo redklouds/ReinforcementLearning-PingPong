@@ -11,6 +11,8 @@
 import numpy as np
 from network import Network
 import random
+
+
 def downsample(image):
     return image[::2, ::2, :]
 def remove_color(image):
@@ -129,28 +131,53 @@ def discount_reward(reward, gamma):
 
 
 def discount_with_rewards(gradient_log, ep_rewards, gamma):
+    """
+    This method takes the gradient and applies a reward discount
+    :param gradient_log: the gradient array/list, from action to expected value
+    :param ep_rewards: the running frames reward array/list
+    :param gamma: amount of gamma coefficient to discount to the reward
+    :return: List/Array of the newly discounted reward array with gradient constant(multiplied into the reward, used for
+    our gradient backprop to learn)
+    """
     discount_ep_reward = discount_reward(ep_rewards, gamma)
-
     discount_ep_reward -= np.mean(discount_ep_reward)
     discount_ep_reward /= np.std(discount_ep_reward)
     return gradient_log * discount_ep_reward
 
 def mutate(network):
+    """
+    randomly select a parameter to change and randomize that parameter, mayneed to change more than 1 parameter at a time
+    :param network: Network Object
+    :return: None
+    """
+    print("Calling Mutate")
     #given a network randomly choose a parameter and randomize that parameter
     param_to_change = random.choice(list(network.getHyperParam().keys()))
     if param_to_change == 'learning_rate' or param_to_change == 'decay_rate':
         network.getHyperParam()[param_to_change] = random.random()
     elif param_to_change == 'weights' or param_to_change == 'num_hidden_neuron':
-#if we run into hidden layer change OR weight change we need to reinitatlize the weights , because the dimensions will need to be updated
-        network.getHyperParam()['num_hidden_neuron'] = random.randint(30, 700)
-        network.reinitWeights() #after changing the number of hidden neurons we need to reintalze the shape of our weights
+        #if we run into hidden layer change OR weight change we need to reinitialize the weights , because the dimensions will need to be updated
+        #network.getHyperParam()['num_hidden_neuron'] = random.randint(30, 700)
+        network.randomizeWeights()
+        #network.reinitWeights() #after changing the number of hidden neurons we need to reinitialize the shape of our weights
 
 def generateChildren(parents,num_children):
+    """
+    return a list of networks that are a combinations of the array of parents given, using
+    random selection process
+    :param parents: Neural networks in which we want to inherit properties (parameters) from
+    :param num_children: the number of spawm we want to generate
+    :return: an array/list of spawn
+    """
+    print("Calling genrate children")
     spawn = []
     for i in range(num_children):
-        _param = {}
+        _param = {} # temp hyper parameters for the child network
         for param in parents[0].getHyperParam().keys():
+            #for each paramter in the parent, choose which parent attribute to inherit from
             _param[param] = random.choice(parents).getHyperParam()[param]
+        #create the child network
         _net = Network(_param)
+        #add it to the running children population
         spawn.append(_net)
     return spawn
