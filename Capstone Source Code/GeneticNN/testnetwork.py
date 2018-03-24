@@ -19,7 +19,7 @@ import pickle
 from helper_methods import preprocess_observation
 from network import Network
 
-
+NUM_NETWORKS_TO_TEST  = 3# number of trained neural networks to test
 def choose_action(probability):
     random_value = np.random.uniform()
     if random_value < probability:
@@ -31,42 +31,40 @@ def choose_action(probability):
 
 def main(hyperParam):
     # load the network and the saved hyper parameters into this network
-    _net = Network(hyper_param=hyperParam)
-    env = gym.make("Pong-v0")
-    obs = env.reset()
+    _net = Network(hyper_param=hyperParam) # each function takes a hyper paramter dictionary
+    env = gym.make("Pong-v0") # makes an enviroment
+    obs = env.reset() # refreshes the enviroment
     prev_obs = None
     while True:
+        #renders the environment visually
         env.render()
+        #preprocess the 210 X 180 pixel frame image
         pro, prev_obs = preprocess_observation(obs, prev_obs, 80*80)
+        #forward policy propagate through the current network
         a2,a1 = _net.predict1(pro)
+        #suggest an action to perform in the environment
         action = choose_action(a1)
+        #store the object frame pixels
         obs, reward, done, info = env.step(action)
         if done:
             obs = env.reset()
             #break
 
 if __name__ == "__main__":
-    print("[+] Loading Hyper Parameters 1....")
-    f = open("Hyper_param_P1.p", "rb")
-    hyper_param = pickle.load(f)
-    f.close()
-    print("Loaded...")
 
+    print("Loading one network")
 
+    f = open("HyperParam_obj.p","rb")
+    network_params = pickle.load(f) # load the array with [network_param1, network_param2, ... network_paraN]
 
-    print("[+] Loading Hyper Parameters 2....")
-    f = open("hyper_param_P2.p","rb")
-    hyper_param2 = pickle.load(f)
-    f.close()
-    print("Loaded....")
-    main(hyper_param)
-    #
-    # #p2 = Process(target =main, args=(hyper_param,) )
-    # p3 = Process(target= main, args=(hyper_param2,) )
-    # #p2.start()
-    # p3.start()
-
-
+    #stop the program if the number of networks to test is out of bounds
+    assert NUM_NETWORKS_TO_TEST <= len(network_params), "Not enough hyper parameters to test"
+    for process in range(NUM_NETWORKS_TO_TEST):
+        #grab an asscoiated network parameter from the parameter array and pass it to
+        #the working method, each network MUST have its own process, openai gym DOES NOT allow
+        # multiple threads from the same process to handle multiple environments
+        p = Process(target = main, args=(network_params[process],))
+        p.start()
 
 
 

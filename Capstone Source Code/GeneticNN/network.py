@@ -3,17 +3,18 @@
 #=#| File:   network.py
 #=#| Date:   3/10/2018
 #=#|
-#=#| Program Desc:
+#=#| Program Desc: Network Object
 #=#|
-#=#| Usage:
+#=#| Usage: Used as a object to store our parameters for each neural network
 #=#|
 #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#\|
 import numpy as np
 import random
+
 class Network:
     """
-    This is the Neural Network object, which stores the hyper paramters we are trying to
-    Optimize, this Object contains forward proprogation methods, as well as activation functions
+    This is the Neural Network object, which stores the hyper parameters we are trying to
+    Optimize, this Object contains forward prorogation methods, as well as activation functions
         {
             'learning_rate':int,
             'decay_rate':float,
@@ -39,7 +40,7 @@ class Network:
 
         lr = round(random.random(), 2) # learning_rate [0,1)
         dr = round(random.random(), 2) # decay_rate [0,1)
-        hid_nur = random.randint(20, 700) #number hidden neurons [20, 700)
+        hid_nur = random.randint(5, 400) #number hidden neurons [20, 700)
 
         _w = {}
         self._hyper_param = {'learning_rate': lr,
@@ -58,7 +59,7 @@ class Network:
         :return: None
         """
         assert 'weights' in self._hyper_param.keys(), "ERROR with object initalization, missing 'weights' hyper param"
-        assert type(dict) == type(self._hyper_param['weights']), "Error hyper param, 'weights' initalize with wrong type, needs DICT"
+        assert type(dict()) == type(self._hyper_param['weights']), "Error hyper param, 'weights' initalize with wrong type, needs DICT GOT %s"% type(self._hyper_param['weights'])
 
         self._hyper_param['weights']['1'] = np.random.randn(num_hidden_nur, num_input_nur) / np.sqrt(num_hidden_nur)
         self._hyper_param['weights']['2'] = np.random.randn(num_hidden_nur) / np.sqrt(num_hidden_nur)
@@ -108,7 +109,7 @@ class Network:
 
     def predict1(self, input_p ):
         """
-        This is our forward propagation method, using a Relu Activation Function, and a LogSigmoid Output activation function
+        This is our forward propagation method, using a ReLu Activation Function, and a LogSigmoid Output activation function
         the last output will be a floating point value, in which a probability of an action to perform
         :param input_p: an 80*80 vector
         :return:
@@ -141,7 +142,9 @@ class Network:
         return a2, a1
 
     def sigmoid(self, x):
-        return 1.0 / (1.0 + np.exp(-x))
+        return 1 / (1 + np.exp(-x))
+        #return 1/ (1 + expit(-x))
+
     def getAction(self, vector):
         action_idx = np.argmax(vector)
         if action_idx == 0:
@@ -153,7 +156,7 @@ class Network:
 
     def __str__(self):
         """
-        To Print out our network , Overrides the toSTring Method
+        To Print out our network , Overrides the toString Method
         :return: String
         """
         retString = "LR: %s | #HidNur: %s | DR: %s " % (

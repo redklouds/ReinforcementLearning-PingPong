@@ -15,14 +15,20 @@ from exitobject import ExitObject # threaded exit object
 from helper_methods import generateChildren, mutate
 import numpy as np
 from workthread import WorkThread
-NUM_GENERATIONS = 800
-NUM_NETWORKS = 15
-PERCENT_NETS_TO_KILL = .45
-NUM_PARENTS = 3
-INPUT_DIMENSION = 80*80
-RESUME = True
-INCLUDE_CAPARSION = True
-NUM_ROUNDS = 10 #value determines how many rounds of ping-pong out of 21(is a round) do we play until we update our weights
+
+#############################################
+# Program Paramters, Below
+#
+#
+#############################################
+NUM_GENERATIONS = 800       # the number of generations this training algorithm should perform
+NUM_NETWORKS = 20           # the number of networks
+PERCENT_NETS_TO_KILL = .60  # the percentage of networks to kill, in order to replace with next generation spawn
+NUM_PARENTS = 6             # Number of Parents, to save: at end of each generation(winners), and load(when training again)
+INPUT_DIMENSION = 80*80     # expected input dimensions of our pingpong frame vector
+RESUME = False              # Should the program resume with the winning saved networks introduced into this training session?
+INCLUDE_CAPARSION = True    # Should we include the network that is NOT being trained with genetic algorithm
+NUM_ROUNDS = 20             # value determines how many rounds of ping-pong out of 21(is a round) do we play until we update our weights
 # and return to a next generation, the more we train the longer, but the better results we will have from a good gradient batch to learn from
 
 
@@ -45,7 +51,7 @@ def makeRandomNetworks(input_dimensions,num_networks, queue):
     for net in range(num_networks):
         # create random network
         lr = round(random.random(), 2)
-        hid_nur = random.randint(120, 800)
+        hid_nur = random.randint(5, 400)
         dr = round(random.random(), 2)
         _w = {'1': np.random.randn(hid_nur, input_dimensions) / np.sqrt(input_dimensions),
               '2': np.random.randn(hid_nur) / np.sqrt(hid_nur)
@@ -81,30 +87,14 @@ def makeThreads(num_threads, thread_storage, thread_exit_obj, thread_work_que_lo
 
 #a 32bit python Interperter only allows 2GB physical page siz ein ram
 def main():
-    environment_list = []
-    pop = Queue() #population queue, storage for all our neural networks
+    """
+    Entry of our program
+    :return:
+    """
+    environment_list = []   # the environment array, holds a list of ping Pong environments that we can train the networks in
+    pop = Queue()           # population queue, storage for all our neural networks
     # initialize the Default starting networks
 
-    if RESUME:
-        # RESUME Where we left off all, meaning re-introduce the configurations for the winning parents of the last generation
-        # then fill in the missing amount with random new networks, in theory the winning parents should still stay on top in the following
-        # generation.
-        file = open("HyperParam_obj.p", "rb")
-        data = pickle.load(file)
-        assert NUM_PARENTS <= len(data), "Not enough saved parent networks, please check NUM_PARENTS PARAMTER"
-        file.close()
-
-        for _param in range(NUM_PARENTS):
-            _n = Network(data[_param])
-            pop.put(_n)
-
-
-        makeRandomNetworks( INPUT_DIMENSION, (NUM_NETWORKS - NUM_PARENTS ) , pop )
-
-    else:
-        makeRandomNetworks(INPUT_DIMENSION, NUM_NETWORKS, pop)
-
-    makeEnvironments(NUM_NETWORKS, environment_list)
     # place where we put work that needs to be processed
     workQueue = Queue()
     # thread synchronize lock
@@ -115,22 +105,47 @@ def main():
 
 
 
-    #number of networks ot make, the thread_list, the exit object, synchronized lock, and the work Queue
+    if RESUME:
+        # RESUME Where we left off all, meaning re-introduce the configurations for the winning parents of the last generation
+        # then fill in the missing amount with random new networks, in theory the winning parents should still stay on top in the following
+        # generation.
+        file = open("HyperParam_obj.p", "rb")
+        data = pickle.load(file)            # a list containing all the trained networks i.e [net1, net2,.. netN]
+        assert NUM_PARENTS <= len(data), "Not enough saved parent networks, please check NUM_PARENTS PARAMTER"
+        file.close()
+
+        for _param in range(NUM_PARENTS):   # for each of the already trained winning networks
+                                            # make a network object with these parameters
+            _n = Network(data[_param])
+            pop.put(_n)                     # put the network into the population queue
+        # Call to method to populate the remaining population spaces with random instantiated neural networks
+        # Ex if the total population is 20, and we have 3 pertained networks, we need to populate 17 networks to cover
+        # total population
+        makeRandomNetworks( INPUT_DIMENSION, (NUM_NETWORKS - NUM_PARENTS ) , pop )
+    else:
+        # if there we are not introducing pre-trained networks, populate the population with NEW, random neural networks
+        makeRandomNetworks(INPUT_DIMENSION, NUM_NETWORKS, pop)
+
+    makeEnvironments(NUM_NETWORKS, environment_list)    # method to populate the environment array with new environments to use for
+    # training
+
+    #method to make the number of threads, 1 thread for every 1 network and 1 environment
+
     makeThreads(NUM_NETWORKS , threads,thExitController,workQueueLock, workQueue)
 
 
-    ##############################################################################################
-    ###################################################################
-
     if INCLUDE_CAPARSION:
-        __env = gym.make("Pong-v0")
-        makeThreads(1, threads, thExitController,workQueueLock,workQueue, "TRTR" )
+        # This section is a boolean value representing if we should include within our training session
+        # a neural network that DOES NOT use genetic Algorithms
 
-        f = open("comparison.p", "rb")
+        __env = gym.make("Pong-v0")         #set up a environment
+        makeThreads(1, threads, thExitController,workQueueLock,workQueue, "TRTR" ) # make a work thread
+
+        f = open("comparison.p", "rb")      # open the network file
         a = pickle.load(f)
         f.close()
-        __net = Network(a, name="COMPARSION")
-        __work = {
+        __net = Network(a, name="COMPARSION") #make the network, and populate a work structure
+        __work = {# to insert into the workQueue
             'net': __net,
             'env': __env,
             'tag': True,
@@ -141,9 +156,8 @@ def main():
         workQueueLock.release()
 
 
-    ########################################################################
-    #########################################################################################
     for generation in range(NUM_GENERATIONS):
+        #for each generation
         result_arr = []
 
         print("[+] Starting Generation-%s" % generation)

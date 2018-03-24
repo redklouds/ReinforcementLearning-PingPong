@@ -174,7 +174,7 @@ class WorkThread(threading.Thread):
                         self.QueueLock.release()
 
                         #prev_processed_obser = None
-
+                        print("thread-%s finished training with ... %s" %(self.threadID, work_obj['net']))
                         break
                 #reset the values for this current round
                 ep_hidden_layer_vals = []

@@ -3,9 +3,9 @@
 #=#| File:   helper_methods.py
 #=#| Date:   3/10/2018
 #=#|
-#=#| Program Desc:
+#=#| Program Desc: This is a group of multiple helper methods
 #=#|
-#=#| Usage:
+#=#| Usage: Assist in the program flow
 #=#|
 #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#\|
 import numpy as np
@@ -61,7 +61,6 @@ def preprocess_observation(input_observation, prev_processed_observation, input_
     # store the previous frame so we can subtract from it next time
     prev_processed_observations = processed_observation
 
-    #print("RETURNING %s" % input_observation.shape)
     return input_observation, prev_processed_observations
 
 
@@ -137,7 +136,6 @@ def compute_gradient(gradient_log_p, hidden_layer_values, observation_values, we
         '2': dC_dw2
     }
 
-
 def discount_reward(reward, gamma):
     """Discount ensures that actions that were taken in the beginning weight less of an
         importance to the result than actions that were taken 2 steps prior to this result"""
@@ -160,27 +158,26 @@ def discount_with_rewards(gradient_log, ep_rewards, gamma):
     :return: List/Array of the newly discounted reward array with gradient constant(multiplied into the reward, used for
     our gradient backprop to learn)
     """
-    discount_ep_reward = discount_reward(ep_rewards, gamma)
-    discount_ep_reward -= np.mean(discount_ep_reward)
+    discount_ep_reward = discount_reward(ep_rewards, gamma) # make an array that applies a discount to actions that are
+    # more relevant,
+    discount_ep_reward -= np.mean(discount_ep_reward) # normalize this reward vector
     discount_ep_reward /= np.std(discount_ep_reward)
-    return gradient_log * discount_ep_reward
+    return gradient_log * discount_ep_reward # apply the gradient score to the respective rewards, this tells us the gradient(error to learn from)
 
 def mutate(network):
     """
-    randomly select a parameter to change and randomize that parameter, mayneed to change more than 1 parameter at a time
+    randomly select a parameter to change and randomize that parameter, may need to change more than 1 parameter at a time
     :param network: Network Object
     :return: None
     """
-    print("Calling Mutate")
-    #given a network randomly choose a parameter and randomize that parameter
-    param_to_change = random.choice(list(network.getHyperParam().keys()))
-    if param_to_change == 'learning_rate' or param_to_change == 'decay_rate':
-        network.getHyperParam()[param_to_change] = random.random()
-    elif param_to_change == 'weights' or param_to_change == 'num_hidden_neuron':
-        #if we run into hidden layer change OR weight change we need to reinitialize the weights , because the dimensions will need to be updated
-        #network.getHyperParam()['num_hidden_neuron'] = random.randint(30, 700)
-        network.randomizeWeights()
-        #network.reinitWeights() #after changing the number of hidden neurons we need to reinitialize the shape of our weights
+
+    for param in network.getHyperParam().keys():
+        #for each hyper parameter lets introduce some randomization
+        if param == 'learning_rate' or param == 'decay_rate':
+            network.getHyperParam()[param] = random.random()
+        elif param == 'weights' or param == 'num_hidden_neuron':
+            # if we run into hidden layer change OR weight change we need to reinitialize the weights , because the dimensions will need to be updated
+            network.randomizeWeights(random.randint(5, 400), 80 * 80)
 
 def generateChildren(parents,num_children):
     """
@@ -190,7 +187,7 @@ def generateChildren(parents,num_children):
     :param num_children: the number of spawm we want to generate
     :return: an array/list of spawn
     """
-    print("Calling genrate children")
+    print("Calling Generating children")
     spawn = []
     for i in range(num_children):
         _param = {} # temp hyper parameters for the child network
